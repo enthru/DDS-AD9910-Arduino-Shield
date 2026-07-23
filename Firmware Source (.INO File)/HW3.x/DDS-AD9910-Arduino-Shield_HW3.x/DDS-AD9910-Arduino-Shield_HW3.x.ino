@@ -64,6 +64,11 @@
    Added: CalcDBCorrection function to correct dBm value on display when AM enabled
    Fixed: bug with no output when FM deviation freq lower than 1000 kHz
 */
+
+#define BLACK   0
+#define WHITE   1
+#define INVERSE 2
+
 #include "main.h"
 #include "ad9910.h"
 #include "GyverTimers.h"
@@ -183,7 +188,7 @@ Encoder myEnc(B_PIN, A_PIN);
 
 //*********************************
 
-int M, K, H, A, MenuPos;
+int M, K, H, A, realA, MenuPos, lastAttValue, attValue;
 int DBCorrection = 0;
 
 #define VOLTAGE_DIVIDER_FACTOR 0.1754
@@ -192,6 +197,16 @@ int DBCorrection = 0;
 
 bool isPWR_DWN = false;
 //bool needsUpdateDisplay = false;
+
+//10db
+#define ATT1 A8
+#define ATT2 A9
+//40db
+#define ATT3 A12
+#define ATT4 A13
+//20db
+#define ATT5 A10
+#define ATT6 A11
 
 void setup()
 {
@@ -207,7 +222,7 @@ void setup()
   digitalWrite(TRG_OUT_PIN, LOW);
   digitalWrite(TRG_LED_PIN, LOW);
 
-  display = Adafruit_SSD1306(128, 64, &Wire);
+  display = Adafruit_CH1116(128, 64, &Wire);
   //display.setRotation(2);
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
   display.clearDisplay();
@@ -219,6 +234,17 @@ void setup()
   Serial.println(F("DDS AD9910 Arduino Shield v3.5 by GRA & AFCH. (gra-afch.com)"));
   Serial.print(F("Firmware v.:"));
   Serial.println(FIRMWAREVERSION);
+
+  pinMode(ATT1, OUTPUT);
+  pinMode(ATT2, OUTPUT);
+  pinMode(ATT3, OUTPUT);
+  pinMode(ATT4, OUTPUT);
+  pinMode(ATT5, OUTPUT);
+  pinMode(ATT6, OUTPUT);
+
+  resetATTPins();
+  resetATT();
+  //checkATT();
 
   Serial.print(F("Input voltage = "));
   Serial.println(getInputVoltage());
@@ -255,6 +281,12 @@ void setup()
   modeButton.debounceTime   = 25;   // Debounce timer in ms
   modeButton.multiclickTime = 1;  // Time limit for multi clicks
   modeButton.longClickTime  = 1000; // time until "held-down clicks" register
+
+  // Опрос кнопок в фоне: Timer5, период 1 мс. Кнопки теперь не теряются
+  // во время блокирующих операций (отрисовка дисплея, обмен по SPI с DDS).
+  // Timer1 занят S-Curve модуляцией, поэтому используем Timer5.
+  Timer5.setPeriod(1000);          // 1000 мкс = 1 мс
+  Timer5.enableISR(CHANNEL_A);
 
   DrawMainMenu();
 }
@@ -359,18 +391,20 @@ void loop ()
     curPos=0;
     curPos=myEnc.read();
 
-    RFOutButton.Update();
-    modeButton.Update(); // read state button encoder
+    // Кнопки опрашиваются в таймерном прерывании (Timer5), здесь только
+    // забираем защёлкнутый результат клика.
+    int8_t modeClicks  = TakeModeClicks();
+    int8_t RFOutClicks = TakeRFOutClicks();
 
 /**************************************************************************/
-    if (modeButton.clicks > 0) // short click button encoder
+    if (modeClicks > 0) // short click button encoder
     {
       switch(MenuPos)
       {
-      case MAIN_MENU_MOD_INDEX: 
+      case MAIN_MENU_MOD_INDEX:
         Modultaion_Menu();
       break;
-      case MAIN_MENU_LOCAL_OSC_INDEX: 
+      case MAIN_MENU_LOCAL_OSC_INDEX:
         LocalOscillator_Menu();
       break;
       default:
@@ -380,10 +414,10 @@ void loop ()
 /**************************************************************************/
 
 /**************************************************************************/
-    if (modeButton.clicks < 0) DDS_Clock_Config_Menu(); // long click button encoder
+    if (modeClicks < 0) DDS_Clock_Config_Menu(); // long click button encoder
 /**************************************************************************/
 
-    if (RFOutButton.clicks > 0) // short click 
+    if (RFOutClicks > 0) // short click
     {
       isPWR_DWN = !isPWR_DWN;
       if (isPWR_DWN) TurnDDSPowerOFF(); //digitalWrite(DDS_PWR_DWN_PIN, HIGH);
@@ -422,6 +456,8 @@ void loop ()
         {
           A = A - curPos;
           if (A < 0) A = 0;
+          changeATT();
+          changeATTValue();
         }
        // if (MenuPos == 4) Modultaion_Menu();
       }
@@ -441,7 +477,9 @@ void loop ()
         if (MenuPos == 3)
         {
           A = A + curPos*-1;
-          if (A > 72) A = 72; // Amplitude low limit
+          if (A > 142) A = 142; // Amplitude low limit
+          changeATT();
+          changeATTValue();
         }
         //if (MenuPos == 4) Modultaion_Menu();
       }
@@ -461,6 +499,201 @@ void loop ()
   }
 }
 
+/* att changer */
+
+void resetATTPins() {
+  digitalWrite(ATT1, LOW);
+  digitalWrite(ATT2, LOW);
+  digitalWrite(ATT3, LOW);
+  digitalWrite(ATT4, LOW);
+  digitalWrite(ATT5, LOW);
+  digitalWrite(ATT6, LOW);
+}
+
+void att10db() {
+  digitalWrite(ATT1, HIGH);
+  digitalWrite(ATT4, HIGH);
+  digitalWrite(ATT6, HIGH);
+  delay(50);
+  digitalWrite(ATT1, LOW);
+  digitalWrite(ATT4, LOW);
+  digitalWrite(ATT6, LOW);
+}
+
+void att20db() {
+  digitalWrite(ATT2, HIGH);
+  digitalWrite(ATT4, HIGH);
+  digitalWrite(ATT5, HIGH);
+  delay(50);
+  digitalWrite(ATT2, LOW);
+  digitalWrite(ATT4, LOW);
+  digitalWrite(ATT5, LOW);
+}
+
+void att30db() {
+  digitalWrite(ATT1, HIGH);
+  digitalWrite(ATT4, HIGH);
+  digitalWrite(ATT5, HIGH);
+  delay(50);
+  digitalWrite(ATT1, LOW);
+  digitalWrite(ATT4, LOW);
+  digitalWrite(ATT5, LOW);
+}
+
+void att40db() {
+  digitalWrite(ATT2, HIGH);
+  digitalWrite(ATT3, HIGH);
+  digitalWrite(ATT6, HIGH);
+  delay(50);
+  digitalWrite(ATT2, LOW);
+  digitalWrite(ATT3, LOW);
+  digitalWrite(ATT6, LOW);
+}
+
+void att50db() {
+  digitalWrite(ATT1, HIGH);
+  digitalWrite(ATT3, HIGH);
+  digitalWrite(ATT6, HIGH);
+  delay(50);
+  digitalWrite(ATT1, LOW);
+  digitalWrite(ATT3, LOW);
+  digitalWrite(ATT6, LOW);
+}
+
+void att60db() {
+  digitalWrite(ATT2, HIGH);
+  digitalWrite(ATT3, HIGH);
+  digitalWrite(ATT5, HIGH);
+  delay(10);
+  digitalWrite(ATT2, LOW);
+  digitalWrite(ATT3, LOW);
+  digitalWrite(ATT5, LOW);
+}
+
+void att70db() {
+  digitalWrite(ATT1, HIGH);
+  digitalWrite(ATT3, HIGH);
+  digitalWrite(ATT5, HIGH);
+  delay(50);
+  digitalWrite(ATT1, LOW);
+  digitalWrite(ATT3, LOW);
+  digitalWrite(ATT5, LOW);
+}
+
+void resetATT() {
+  digitalWrite(ATT2, HIGH);
+  digitalWrite(ATT4, HIGH);
+  digitalWrite(ATT6, HIGH);
+  delay(50);
+  digitalWrite(ATT2, LOW);
+  digitalWrite(ATT4, LOW);
+  digitalWrite(ATT6, LOW);
+}
+
+/* calculate real amplitude for ad9910*/
+
+void changeATT() {
+  A = A * -1;
+  if (A > -10) {
+    realA = A;
+    attValue = 0;
+  } else if ((A <= -10) && (A > -20)) {
+    attValue = 10;
+    realA = A + 10;
+  } else if ((A <= -20) && (A > -30)) {
+    attValue = 20;
+    realA = A + 20;
+  } else if ((A <= -30) && (A > -40)) {
+    attValue = 30;
+    realA = A + 30;
+  } else if ((A <= -40) && (A > -50)) {
+    attValue = 40;
+    realA = A + 40;
+  } else if ((A <= -50) && (A > -60)) {
+    attValue = 50;
+    realA = A + 50;
+  } else if ((A <= -60) && (A > -70)) {
+    attValue = 60;
+    realA = A + 60;
+  } else if (A <= -70) {
+    attValue = 70;
+    realA = A + 70;
+  }
+  Serial.println("A = " + String(A));
+  Serial.println("realA = " + String(realA));
+  A = A * -1;
+}
+
+/* change att value*/
+
+void changeATTValue() {
+  if (lastAttValue != attValue) {
+    switch(attValue) {
+      case 0:
+        resetATT();
+        delay(100);
+        resetATT();
+        break;
+      case 10:
+        att10db();
+        delay(100);
+        att10db();
+        break;
+      case 20:
+        att20db();
+        delay(100);
+        att20db();
+        break;
+      case 30:
+        att30db();
+        delay(100);
+        att30db();
+        break;
+      case 40:
+        att40db();
+        delay(100);
+        att40db();
+        break;
+      case 50:
+        att50db();
+        delay(100);
+        att50db();
+        break;
+      case 60:
+        att60db();
+        delay(100);
+        att60db();
+        break;
+      case 70:
+        att70db();
+        delay(100);
+        att70db();
+    }
+    lastAttValue = attValue;
+  }
+  Serial.println("A = " + String(A));
+  Serial.println("realA = " + String(realA));
+}
+
+/* att checker */
+void checkATT() {
+  att10db();
+  delay(2000);
+  att20db();
+  delay(2000);
+  att30db();
+  delay(2000);
+  att40db();
+  delay(2000);
+  att50db();
+  delay(2000);
+  att60db();
+  delay(2000);
+  att70db();
+  delay(2000);
+  resetATT();
+}
+
 /************
    MakeOut - решает какую из функци генерации выбрать (в зависимости от значения ModIndex)
  ********/
@@ -470,11 +703,11 @@ void MakeOut(char command='\0')
   switch (ModIndex)
   {
     case NONE_MOD_TYPE: //модуляция отключена
-      SingleProfileFreqOut(M * 1000000L + K * 1000L + H, A * -1);
-      //SingleProfileFreqOut(1000, A*-1); //DELETE THIS
+      SingleProfileFreqOut(M * 1000000L + K * 1000L + H, realA);
+      //SingleProfileFreqOut(1000, realA); //DELETE THIS
       break;
     case AM_MOD_TYPE: // AM амплитудная модуляция
-      SaveAMWavesToRAM(M * 1000000L + K * 1000L + H, MFreqK * 1000L + MFreqH, AMDepth, A * -1);
+      SaveAMWavesToRAM(M * 1000000L + K * 1000L + H, MFreqK * 1000L + MFreqH, AMDepth, realA);
       break;
     case FM_MOD_TYPE: // FM частотная модуляция
       if ((MenuPos == 3) || (command == 'P')) //Amplitude /*DEV*/
@@ -486,7 +719,7 @@ void MakeOut(char command='\0')
       Sweep(GetSweepStartFreq(), GetSweepEndFreq(), SweepTime, SweepTimeFormat);
       break;
     case LO_MOD_TYPE:
-      SingleProfileFreqOut(loSettings.RealCarrierFreq, A * -1);
+      SingleProfileFreqOut(loSettings.RealCarrierFreq, realA);
       break;
     case S_CURVE_MOD_TYPE:
       digitalWrite(TRG_LED_PIN, HIGH);
@@ -894,8 +1127,13 @@ void selectClockSrcPath(uint8_t path)
   }
 }
 
+// Прерывание А таймера 5 — фоновый опрос кнопок каждую 1 мс
+ISR(TIMER5_A) {
+  ServiceButtons();
+}
+
 // Прерывание А таймера 1
-ISR(TIMER1_A) {  
+ISR(TIMER1_A) {
   
   switch (TRG_STATE)
   {

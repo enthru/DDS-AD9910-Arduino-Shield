@@ -11,9 +11,7 @@ void Modultaion_Menu()
     curPos=0;
     curPos=myEnc.read();
 
-    modeButton.Update(); // read state button encoder
-
-    if (modeButton.clicks > 0) // short click button encoder
+    if (TakeModeClicks() > 0) // short click button encoder
     {
       switch (ModMenuPos)
       {

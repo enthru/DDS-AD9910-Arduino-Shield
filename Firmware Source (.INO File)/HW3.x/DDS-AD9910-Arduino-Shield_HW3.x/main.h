@@ -7,7 +7,7 @@
 #define __MAIN_H
 
 #include <Wire.h>
-#include <Adafruit_SSD1306.h>
+#include <Adafruit_CH1116.h>
 #include <ClickButton.h>
 
 #include <Encoder.h>
@@ -47,9 +47,18 @@ extern ClickButton modeButton;
 extern ClickButton RFOutButton;
 extern bool RFOut;
 
+// --- Кнопки на прерывании (Timer5, ~1 мс) ---
+// ServiceButtons() опрашивает обе кнопки в таймерном прерывании и защёлкивает
+// результат клика. TakeModeClicks()/TakeRFOutClicks() читают-и-сбрасывают
+// защёлку в главном цикле (значение как у ClickButton.clicks:
+// >0 короткий клик, <0 длинный).
+void ServiceButtons();
+int8_t TakeModeClicks();
+int8_t TakeRFOutClicks();
+
 extern bool EditMode;
 
-extern Adafruit_SSD1306 display;
+extern Adafruit_CH1116 display;
 extern int ModIndex;
 extern int M, K, H, A, MenuPos;
 extern int8_t curPos;

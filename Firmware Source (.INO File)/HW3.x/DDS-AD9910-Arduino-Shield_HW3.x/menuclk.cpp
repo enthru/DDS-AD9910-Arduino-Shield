@@ -3,6 +3,10 @@
  *                                        *******************************************                                      
  */
  
+#define BLACK   0
+#define WHITE   1
+#define INVERSE 2
+
 #include "menuclk.h"
 
   int SetupMenuPos=0;
@@ -64,9 +68,7 @@ void DDS_Clock_Config_Menu()
     curPos=0;
     curPos=myEnc.read();
 
-    modeButton.Update(); // read state button encoder
-
-    if (modeButton.clicks > 0) // short click button encoder
+    if (TakeModeClicks() > 0) // short click button encoder
     {
       switch (SetupMenuPos)
       {
