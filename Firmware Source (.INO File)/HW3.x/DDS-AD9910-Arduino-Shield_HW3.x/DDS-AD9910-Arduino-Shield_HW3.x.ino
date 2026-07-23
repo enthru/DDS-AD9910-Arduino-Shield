@@ -3,6 +3,7 @@
  *                                        *          ONLY FOR Version 3.5+           *    
  *                                        ********************************************
  *                                                (ТОЛЬКО ДЛЯ ПЛАТ ВЕРСИИ 3.5+)
+ *  v.3.23 //01.11.2026 По-умолчанию выход выключен при подаче питания (раньше генератор запускался сразу)
  *  v.3.22 //050925    
           изменине амплитуды отделено от изменения всего остального для FM модуляции (как через энкодер, так и через комманды сериал порта) 
           добавлены две задержки по 100 мс после записи FM в RAM
@@ -73,7 +74,7 @@
 #include "ad9910.h"
 #include "GyverTimers.h"
 #include <GParser.h>
-#define FIRMWAREVERSION "3.22"
+#define FIRMWAREVERSION "3.23"
 
 Encoder myEnc(B_PIN, A_PIN);
 
@@ -276,6 +277,7 @@ void setup()
   LoadLOSettings();
 
   MakeOut();
+  TurnDDSPowerOFF(); //по-умолчанию выход выключен при подаче питания
 
   MenuPos = 0;
   modeButton.debounceTime   = 25;   // Debounce timer in ms
