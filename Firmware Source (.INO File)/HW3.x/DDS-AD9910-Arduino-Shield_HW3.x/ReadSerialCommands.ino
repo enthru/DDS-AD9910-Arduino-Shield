@@ -1,10 +1,11 @@
 
-#define SERIAL_PACKAGE_MAX_LENGTH 20
+#define SERIAL_PACKAGE_MAX_LENGTH 64
 char SerialBuffer[SERIAL_PACKAGE_MAX_LENGTH];
 
 const char HELP_STRING [] PROGMEM = 
-          "F - Set Frequency in Hz (100000 — 600000000)\n"
+          "F - Set Frequency in Hz (100000 — 600000000), turns Sweep off\n"
           "P - Set Output Power in dBm (-72 — 0 OR -68 — +4, depending on \"DAC current\")\n"
+          "S - Sweep: S<start Hz>:<stop Hz>:<time mS>, e.g. S1000000:2000000:10\n"
           "M - Get Model\n"
           "V - Get Firmware Version\n"
           "E - Enable Output\n"
@@ -21,7 +22,7 @@ void ReadSerialCommands()
 {
   if (!Serial.available()) return;
   int RcvCounter=0;
-  RcvCounter = Serial.readBytesUntil('\n', SerialBuffer, 110);
+  RcvCounter = Serial.readBytesUntil('\n', SerialBuffer, SERIAL_PACKAGE_MAX_LENGTH - 1);
   if (RcvCounter == 0) return;
   SerialBuffer[RcvCounter]='\0';
 
@@ -46,6 +47,7 @@ void ReadSerialCommands()
             K = value % 1000;
             value = value / 1000;
             M = value % 1000;
+            if (ModIndex == SWEEP_MOD_TYPE) ModIndex = NONE_MOD_TYPE;
           } else Serial.println("Frequency is OUT OF RANGE (" + String(LOW_FREQ_LIMIT) + " — " + String(HIGH_FREQ_LIMIT) + ")");
         break;
 
@@ -68,6 +70,32 @@ void ReadSerialCommands()
             changeATT();
             changeATTValue();
           } else Serial.println("Power is OUT OF RANGE (" + String(lowPowerLimit) + " — " + String(highPowerLimit) + ")");
+        break;
+
+        case 'S': //Sweep: S<start Hz>:<stop Hz>:<time mS>
+        {
+          uint32_t startFreq, stopFreq;
+          unsigned int sweepTimeMs;
+          if ((sscanf(data[i], "S%lu:%lu:%u", &startFreq, &stopFreq, &sweepTimeMs) == 3) &&
+              inRange(startFreq, MIN_SWEEP_FREQ, MAX_SWEEP_FREQ) &&
+              inRange(stopFreq, MIN_SWEEP_FREQ, MAX_SWEEP_FREQ) &&
+              (startFreq < stopFreq) && (sweepTimeMs > 0))
+          {
+            SetSweepStartFreq(startFreq);
+            SetSweepEndFreq(stopFreq);
+            SweepTime = sweepTimeMs;
+            SweepTimeFormat = 1; //mS
+            IsSweepTimeTooLong(); //ограничивает время максимально возможным для заданного диапазона
+            ModIndex = SWEEP_MOD_TYPE;
+            Serial.print(F("Set Sweep: "));
+            Serial.print(startFreq);
+            Serial.print(F(" — "));
+            Serial.print(stopFreq);
+            Serial.print(F(" Hz, "));
+            Serial.print(SweepTime);
+            Serial.println(TimeFormatsNames[SweepTimeFormat]);
+          } else Serial.println("Sweep is OUT OF RANGE (" + String(MIN_SWEEP_FREQ) + " — " + String(MAX_SWEEP_FREQ) + ", start < stop, time > 0 mS)");
+        }
         break;
 
         case 'D': 
