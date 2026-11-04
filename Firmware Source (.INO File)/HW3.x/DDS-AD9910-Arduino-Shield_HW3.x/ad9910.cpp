@@ -878,10 +878,9 @@ void SingleProfileSSBDTMF(uint32_t freq_output, int16_t amplitude_dB_output) //d
 /*************************************************************************************
  * Digital Ramp Generator Enable
  **********************************************************************************/
-void DigitalRamp(uint32_t FTWStart, uint32_t FTWEnd, uint32_t FTWStepSize, uint16_t StepRate, bool continuous)
+void DigitalRamp(uint32_t FTWStart, uint32_t FTWEnd, uint32_t FTWStepSize, uint16_t StepRate, bool continuous, int16_t Amplitude_dB)
 {
 
-  int Amplitude_dB=0;
    HAL_GPIO_WritePin(DDS_SPI_CS_GPIO_PORT, DDS_SPI_CS_PIN, GPIO_PIN_RESET);   
    strBuffer[0] = Single_Tone_Profile_0; //Num_Prof; // Single_Tone_Profile_#;
 
@@ -985,7 +984,7 @@ void DigitalRamp(uint32_t FTWStart, uint32_t FTWEnd, uint32_t FTWStepSize, uint1
  //*** digital Ramp Generator enable
   HAL_GPIO_WritePin(DDS_SPI_CS_GPIO_PORT, DDS_SPI_CS_PIN, GPIO_PIN_RESET);    
   strBuffer[0] = CFR2_addr;
-  strBuffer[1] = 0; 
+  strBuffer[1] = Enable_amplitude_scale_from_single_tone_profiles; // амплитуда берется из ASF профиля 0
   if (continuous == true) strBuffer[2] = Digital_Ramp_Destination_Frequency | Digital_ramp_enable | Digital_ramp_no_dwell_high | Digital_ramp_no_dwell_low; // Digital_ramp_no_dwell_high - не останавливатся вверху, Digital_ramp_no_dwell_low - не остановливатся внизу
     else strBuffer[2] =                  Digital_Ramp_Destination_Frequency | Digital_ramp_enable;// | Digital_ramp_no_dwell_high | Digital_ramp_no_dwell_low;  // Digital_ramp_no_dwell_high - не останавливатся вверху, Digital_ramp_no_dwell_low - не остановливатся внизу
   strBuffer[3] = 0;//
@@ -1008,7 +1007,7 @@ void DigitalRamp(uint32_t FTWStart, uint32_t FTWEnd, uint32_t FTWStepSize, uint1
 
 
 //SweepTimeFormat: 0 - Seconds, 1 - Milliseconds (mS), 2 - MicroSeconds (uS), 3 - NanoSeconds
-void Sweep(uint32_t StartSweepFreq, uint32_t StopSweepFreq, uint16_t SweepTime, uint8_t SweepTimeFormat, bool continuous)
+void Sweep(uint32_t StartSweepFreq, uint32_t StopSweepFreq, uint16_t SweepTime, uint8_t SweepTimeFormat, bool continuous, int16_t Amplitude_dB)
 {
   #if DBG==1
   Serial.print("StartSweepFreq=");
@@ -1055,7 +1054,7 @@ void Sweep(uint32_t StartSweepFreq, uint32_t StopSweepFreq, uint16_t SweepTime, 
   Serial.print("FTWStepSize=");
   Serial.println((uint32_t)FTWStepSize);
   #endif
-  DigitalRamp(FTWStart, FTWEnd, FTWStepSize, StepRate, continuous);
+  DigitalRamp(FTWStart, FTWEnd, FTWStepSize, StepRate, continuous, Amplitude_dB);
 }
 
 uint32_t FreqToFTW(uint32_t Freq)
@@ -1108,7 +1107,7 @@ void RestartDRG()
   // DDS_UPDATE();
   HAL_GPIO_WritePin(DDS_SPI_CS_GPIO_PORT, DDS_SPI_CS_PIN, GPIO_PIN_RESET);    
   strBuffer[0] = CFR2_addr;
-  strBuffer[1] = 0; 
+  strBuffer[1] = Enable_amplitude_scale_from_single_tone_profiles; // амплитуда берется из ASF профиля 0
   strBuffer[2] = Digital_Ramp_Destination_Frequency | Digital_ramp_enable;// | Digital_ramp_no_dwell_high | Digital_ramp_no_dwell_low;  // Digital_ramp_no_dwell_high - не останавливатся вверху, Digital_ramp_no_dwell_low - не остановливатся внизу
   strBuffer[3] = 0;//
   strBuffer[4] = 0;// ;

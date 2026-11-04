@@ -358,8 +358,8 @@ void calcBestStepRate(uint16_t *Step, uint64_t *Step_Rate, uint32_t F_mod);
 uint32_t CalcRealDDSCoreClockFromOffset();
 //void SaveDTMFToRAM (uint32_t Tone1, uint32_t Tone2, uint32_t F_dev);
 //void SingleProfileSSBDTMF(uint32_t freq_output, int16_t amplitude_dB_output);
-void DigitalRamp(uint32_t FTWStart, uint32_t FTWEnd, uint32_t FTWStepSize, uint16_t StepRate, bool continuous = true);
-void Sweep(uint32_t StartSweepFreq, uint32_t StopSweepFreq, uint16_t SweepTime, uint8_t SweepTimeFormat, bool continuous = true);
+void DigitalRamp(uint32_t FTWStart, uint32_t FTWEnd, uint32_t FTWStepSize, uint16_t StepRate, bool continuous = true, int16_t Amplitude_dB = 0);
+void Sweep(uint32_t StartSweepFreq, uint32_t StopSweepFreq, uint16_t SweepTime, uint8_t SweepTimeFormat, bool continuous = true, int16_t Amplitude_dB = 0);
 uint32_t FreqToFTW(uint32_t Freq);
 
 void RestartDRG();

@@ -718,14 +718,14 @@ void MakeOut(char command='\0')
           SaveFMWavesToRAM(M * 1000000L + K * 1000L + H, MFreqK * 1000L + MFreqH, FMDevK * 1000L + FMDevH);
       break;
     case SWEEP_MOD_TYPE:
-      Sweep(GetSweepStartFreq(), GetSweepEndFreq(), SweepTime, SweepTimeFormat);
+      Sweep(GetSweepStartFreq(), GetSweepEndFreq(), SweepTime, SweepTimeFormat, true, realA);
       break;
     case LO_MOD_TYPE:
       SingleProfileFreqOut(loSettings.RealCarrierFreq, realA);
       break;
     case S_CURVE_MOD_TYPE:
       digitalWrite(TRG_LED_PIN, HIGH);
-      Sweep(S_CurveCarrier - (S_CurveBandwith * 1000) / 2, S_CurveCarrier + (S_CurveBandwith * 1000) / 2, S_CurveBandwith, 1, false);
+      Sweep(S_CurveCarrier - (S_CurveBandwith * 1000) / 2, S_CurveCarrier + (S_CurveBandwith * 1000) / 2, S_CurveBandwith, 1, false, realA);
       //Sweep(100000, 400000, 3, 1, false);
       //Sweep(GetSweepStartFreq(), GetSweepEndFreq(), SweepTime, SweepTimeFormat);
       StartSCurve();
