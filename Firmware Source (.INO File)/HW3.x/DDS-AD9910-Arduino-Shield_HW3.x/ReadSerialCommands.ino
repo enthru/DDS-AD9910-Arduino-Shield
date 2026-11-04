@@ -65,6 +65,8 @@ void ReadSerialCommands()
             Serial.print(F("Set Power.: "));
             Serial.println(value);
             if (DACCurrentIndex == 0) A = -1 * value; else A = -1 * (value - 4);
+            changeATT();
+            changeATTValue();
           } else Serial.println("Power is OUT OF RANGE (" + String(lowPowerLimit) + " — " + String(highPowerLimit) + ")");
         break;
 
