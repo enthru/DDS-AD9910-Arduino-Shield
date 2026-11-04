@@ -508,7 +508,7 @@ void SaveFMWavesToRAM (uint32_t F_carrier, uint32_t F_mod, uint32_t F_dev)
     DDS_UPDATE();
     Serial.println("FM wave saved to RAM...");
     delay(100); //test
-    PlaybackFMFromRAM(A*-1);
+    PlaybackFMFromRAM(realA);
 }
 
 /*************************************************

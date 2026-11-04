@@ -60,7 +60,7 @@ extern bool EditMode;
 
 extern Adafruit_CH1116 display;
 extern int ModIndex;
-extern int M, K, H, A, MenuPos;
+extern int M, K, H, A, realA, MenuPos;
 extern int8_t curPos;
 extern Encoder myEnc;
 extern void GetColor();

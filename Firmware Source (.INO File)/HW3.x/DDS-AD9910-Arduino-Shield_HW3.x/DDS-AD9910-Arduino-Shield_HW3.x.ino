@@ -713,7 +713,7 @@ void MakeOut(char command='\0')
       break;
     case FM_MOD_TYPE: // FM частотная модуляция
       if ((MenuPos == 3) || (command == 'P')) //Amplitude /*DEV*/
-        PlaybackFMFromRAM(A*-1); //dev
+        PlaybackFMFromRAM(realA); //dev
         else //dev
           SaveFMWavesToRAM(M * 1000000L + K * 1000L + H, MFreqK * 1000L + MFreqH, FMDevK * 1000L + FMDevH);
       break;
